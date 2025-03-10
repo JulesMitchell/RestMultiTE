@@ -1,0 +1,67 @@
+#!/bin/bash
+#PBS -N OKTOS_test
+#PBS -q P_queue
+#PBS -l ncpus=1
+#PBS -l mem=2GB
+#PBS -l walltime=12:00:00
+#PBS -J 0-2335%300
+#PBS -j oe
+#PBS -M j_m289@student.usc.edu.au
+#PBS -m abe
+#PBS -o /mnt/HPCcache/private/j_m289/output
+
+# Set the root data folder
+ROOT_DIR="/mnt/HPCcache/private/j_m289/data"
+
+# Get the list of files in the data folder
+FILES=("$ROOT_DIR"/*)
+echo "Number of files in FILES array: ${#FILES[@]}"
+
+# Get the file index
+FILE_INDEX=$((PBS_ARRAY_INDEX / 32))
+
+# Get the file
+FILE="${FILES[$FILE_INDEX]}"
+FILE_BASENAME=$(basename $FILE)
+echo "File name is: $FILE_BASENAME"
+
+# Extract subject, session, and condition directly from FILE_BASENAME
+SUBJECT=$(echo "$FILE_BASENAME" | cut -d'_' -f1)
+SESSION=$(echo "$FILE_BASENAME" | cut -d'_' -f2)
+CONDITION=$(echo "$FILE_BASENAME" | cut -d'_' -f3)
+echo "Subject ID: $SUBJECT, Session ID: $SESSION, EO: $CONDITION"
+
+# Get the target index
+TARGET_INDEX=$((PBS_ARRAY_INDEX % 32))
+echo "Target index: $TARGET_INDEX"
+
+# Define the path to the analysis file
+ANALYSIS_FILE="/mnt/HPCcache/private/j_m289/pickles/$SUBJECT/$SESSION/${SUBJECT}_${SESSION}_EO_#${TARGET_INDEX}.p"
+echo "Analysis file path: $ANALYSIS_FILE"
+
+# Check if the analysis file already exists
+if [ -f "$ANALYSIS_FILE" ]; then
+    echo "Analysis file $ANALYSIS_FILE already exists. Skipping analysis."
+else
+    echo "Analysis file $ANALYSIS_FILE does not exist. Proceeding with analysis."
+    PRIVATE=/mnt/HPCcache/private/j_m289
+
+    # Create a log file for errors
+    ERROR_LOG="/mnt/HPCcache/private/j_m289/error_log.txt"
+
+    # Introduce staggered sleep to stagger job executions
+    SLEEP_TIME=$(( (PBS_ARRAY_INDEX % 10) + 1 ))
+    sleep $SLEEP_TIME
+
+    # Run the analysis script for each file and target
+    /usr/local/bin/singularity exec \
+    --bind "$PRIVATE":/data  \
+    --bind /mnt/HPCcache/shared/pschwenn/oss/IDTxl:/new_idtxl \
+    /mnt/HPCcache/shared/pschwenn/singularity/ti_eeg.sif python "/data/scripts/te_entropy_npy.py" $TARGET_INDEX "/data/data/$FILE_BASENAME" $SUBJECT $SESSION $CONDITION
+
+    # Check the exit status of the Python script
+    if [ $? -ne 0 ]; then
+        # If an error occurred, log it
+        echo "Error occurred for: File=$FILE_BASENAME, Subject=$SUBJECT, Session=$SESSION, Condition=$CONDITION, Target=$TARGET_INDEX" >> "$ERROR_LOG"
+    fi
+fi

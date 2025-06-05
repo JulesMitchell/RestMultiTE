@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N OKTOS_task_asymmetry_modelcomp
+#PBS -J 0-7
+#PBS -q P_queue
+#PBS -l select=1:ncpus=24:mem=64gb
+#PBS -l walltime=600:00:00
+#PBS -j oe
+#PBS -m a
+#PBS -o logs/oktos_task_asymmetry_20250227_^array_index^.log
+
+# Change to the directory where your R script is located
+cd /mnt/HPCcache/shared/pschwenn/OKTOS
+
+# Sleep for a few seconds
+sleep 2
+
+# Calculate model index (this will give values 0 to 1 for the 0-3 range, 4-7 range, etc.)
+model_index=$((PBS_ARRAY_INDEX % 4))
+
+# Determine which string to pass based on the job array index
+if [ $PBS_ARRAY_INDEX -ge 0 ] && [ $PBS_ARRAY_INDEX -le 3 ]; then
+    task="AO"
+elif [ $PBS_ARRAY_INDEX -ge 4 ] && [ $PBS_ARRAY_INDEX -le 7 ]; then
+    task="AXCPT"
+else
+    echo "Invalid job array index"
+    exit 1
+fi
+
+# Run the R script with the appropriate centrality string
+echo "Running R script for sample entropy model comparisons"
+/usr/local/bin/singularity exec -B ./:/data /mnt/HPCcache/shared/pschwenn/singularity/ti_r.sif bash -c "cd /data && Rscript ./oktos_task_asymmetry_modelcomp.R $metric $model_index ./"

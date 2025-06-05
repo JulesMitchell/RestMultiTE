@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N OKTOS_test
+#PBS -N OKTOS_te
 #PBS -q P_queue
 #PBS -l ncpus=1
 #PBS -l mem=2GB
@@ -35,7 +35,7 @@ echo "Subject ID: $SUBJECT, Session ID: $SESSION, EO: $CONDITION"
 TARGET_INDEX=$((PBS_ARRAY_INDEX % 32))
 echo "Target index: $TARGET_INDEX"
 
-# Define the path to the analysis file
+# Define the path to the analysis file (switch to EC when analysing Eyes closed files)
 ANALYSIS_FILE="/mnt/HPCcache/private/j_m289/pickles/$SUBJECT/$SESSION/${SUBJECT}_${SESSION}_EO_#${TARGET_INDEX}.p"
 echo "Analysis file path: $ANALYSIS_FILE"
 
@@ -57,7 +57,7 @@ else
     /usr/local/bin/singularity exec \
     --bind "$PRIVATE":/data  \
     --bind /mnt/HPCcache/shared/pschwenn/oss/IDTxl:/new_idtxl \
-    /mnt/HPCcache/shared/pschwenn/singularity/ti_eeg.sif python "/data/scripts/te_entropy_npy.py" $TARGET_INDEX "/data/data/$FILE_BASENAME" $SUBJECT $SESSION $CONDITION
+    /mnt/HPCcache/shared/pschwenn/singularity/ti_eeg.sif python "/data/scripts/te_hpc.py" $TARGET_INDEX "/data/data/$FILE_BASENAME" $SUBJECT $SESSION $CONDITION
 
     # Check the exit status of the Python script
     if [ $? -ne 0 ]; then

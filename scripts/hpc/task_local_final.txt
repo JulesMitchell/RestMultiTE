@@ -1,0 +1,46 @@
+#!/bin/bash
+#PBS -N OKTOS_task_local_final
+#PBS -J 0-15
+#PBS -q P_queue
+#PBS -l select=1:ncpus=24:mem=64gb
+#PBS -l walltime=600:00:00
+#PBS -j oe
+#PBS -m a
+#PBS -o logs/oktos_task_local_20250311_^array_index^.log
+
+# Change to the directory where your R script is located
+cd /mnt/HPCcache/shared/pschwenn/OKTOS
+
+# Sleep for a few seconds
+sleep 2
+
+# Calculate model index (this will give values 0 to 1 for the 0-1 range, 2-3 range, etc.)
+model_index=$((PBS_ARRAY_INDEX % 2))
+
+# Determine which task string to pass based on the job array index
+if [ $PBS_ARRAY_INDEX -ge 0 ] && [ $PBS_ARRAY_INDEX -le 7 ]; then
+    task="AO"
+elif [ $PBS_ARRAY_INDEX -ge 8 ] && [ $PBS_ARRAY_INDEX -le 15 ]; then
+    task="AXCPT"
+else
+    echo "Invalid job array index for task"
+    exit 1
+fi
+
+# Determine which metric string to pass based on the job array index
+if [ $PBS_ARRAY_INDEX -ge 0 ] && [ $PBS_ARRAY_INDEX -le 1 ] || [ $PBS_ARRAY_INDEX -ge 8 ] && [ $PBS_ARRAY_INDEX -le 9 ]; then
+    metric="Btwn"
+elif [ $PBS_ARRAY_INDEX -ge 2 ] && [ $PBS_ARRAY_INDEX -le 3 ] || [ $PBS_ARRAY_INDEX -ge 10 ] && [ $PBS_ARRAY_INDEX -le 11 ]; then
+    metric="InDgr"
+elif [ $PBS_ARRAY_INDEX -ge 4 ] && [ $PBS_ARRAY_INDEX -le 5 ] || [ $PBS_ARRAY_INDEX -ge 12 ] && [ $PBS_ARRAY_INDEX -le 13 ]; then
+    metric="OutDgr"
+elif [ $PBS_ARRAY_INDEX -ge 6 ] && [ $PBS_ARRAY_INDEX -le 7 ] || [ $PBS_ARRAY_INDEX -ge 14 ] && [ $PBS_ARRAY_INDEX -le 15 ]; then
+    metric="ClCoef"
+else
+    echo "Invalid job array index for metric"
+    exit 1
+fi
+
+# Run the R script with the appropriate centrality string
+echo "Running R script for sample entropy model comparisons"
+/usr/local/bin/singularity exec -B ./:/data /mnt/HPCcache/shared/pschwenn/singularity/ti_r.sif bash -c "cd /data && Rscript ./oktos_task_local_final.R $task $metric $model_index ./"
